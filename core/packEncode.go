@@ -4,6 +4,7 @@ package core
 import (
 	"github.com/sun8911879/qqtea"
 	"pcqq/utils"
+	"time"
 )
 
 // 组包_包0818: 获取二维码
@@ -213,5 +214,67 @@ func (self *PCQQ) Encode_001D() []byte {
 	pack.SetBin(data)
 	pack.SetHex("03")
 	data = pack.GetAll()
+	return data
+}
+
+// 组包_包0058: 心跳包
+func (self *PCQQ) Encode_0058() []byte {
+	tea,_ := qqtea.NewCipher(self.qq.sessionKey)
+	pack := utils.PackEncrypt{}
+
+	pack.Empty()
+	pack.SetBin(self.qq.utf8QQ)
+	data := tea.Encrypt(pack.GetAll())
+
+	pack.Empty()
+	pack.SetHex("02 36 39")
+	pack.SetHex("00 58")
+	pack.SetBin(utils.GetRandomBin(2))
+	pack.SetBin(self.qq.binQQ)
+	pack.SetHex("02 00 00 00 01 01 01 00 00 67 B7")
+	pack.SetBin(data)
+	pack.SetHex("03")
+	data = pack.GetAll()
+	return data
+}
+
+// 组包_包0002QQ群文本消息
+func (self *PCQQ) Encode_0002_SendGroupText(groupId int64, content string) []byte {
+	tea,_ := qqtea.NewCipher(self.qq.sessionKey)
+	pack := utils.PackEncrypt{}
+
+	self.qq.time = utils.Int64ToBytes(time.Now().Unix())[4:]
+	Msg := []byte(content)
+	// Msg = Msg[0:len(Msg)-1]
+
+	pack.Empty()
+	pack.SetHex("00 01 01 00 00 00 00 00 00 00 4D 53 47 00 00 00 00 00")
+	pack.SetBin(self.qq.time)
+	pack.SetBin(utils.Flip(self.qq.time))
+	pack.SetHex("00 00 00 00 09 00 86 00 00 06 E5 AE 8B E4 BD 93 00 00 01")
+	pack.SetShort(int16(len(Msg) + 3))
+	pack.SetHex("01")
+	pack.SetShort(int16(len(Msg)))
+	pack.SetBin(Msg)
+	data := pack.GetAll()
+
+	pack.Empty()
+	pack.SetHex("2A")
+	pack.SetLong(groupId)
+	pack.SetShort(int16(len(data)))
+	pack.SetBin(data)
+	data = tea.Encrypt(pack.GetAll())
+
+
+	pack.Empty()
+	pack.SetHex("02 36 39")
+	pack.SetHex("00 02")
+	pack.SetBin(utils.GetRandomBin(2))
+	pack.SetBin(self.qq.binQQ)
+	pack.SetHex("02 00 00 00 01 01 01 00 00 67 B7")
+	pack.SetBin(data)
+	pack.SetHex("03")
+	data = pack.GetAll()
+	// fmt.Println("消息包构建完成",len(data))
 	return data
 }

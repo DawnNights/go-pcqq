@@ -25,10 +25,10 @@ func (self *PCQQ) Init() {
 
 // 获取二维码
 func (self *PCQQ) GetQrCode() {
-	data := self.touch_Send(self.Encode_0825(false))
+	data := self.Touch_Send(self.Encode_0825(false))
 	self.Decode_0825(data)
 
-	data = self.touch_Send(self.Encode_0818())
+	data = self.Touch_Send(self.Encode_0818())
 	self.checkQrCode(data)
 }
 
@@ -44,7 +44,7 @@ func (self *PCQQ) checkQrCode(src []byte) {
 
 
 	for i := 0; i < 60; i++ {
-		src = self.touch_Send(self.Encode_0819(codeId,false))
+		src = self.Touch_Send(self.Encode_0819(codeId,false))
 		self.Decode_0819(src,&stateId)
 		if stateId == 0{
 			self.Login()
@@ -57,35 +57,57 @@ func (self *PCQQ) checkQrCode(src []byte) {
 
 // 开始登录
 func (self *PCQQ) Login() {
-	data := self.touch_Send(self.Encode_0825(true))
+	data := self.Touch_Send(self.Encode_0825(true))
+	// fmt.Println("0825登录包发送完成")
 	self.Decode_0825(data)
+	// fmt.Println("0825登录包解析完成")
 
-	data = self.touch_Send(self.Encode_0836())
+
+	data = self.Touch_Send(self.Encode_0836())
+	// fmt.Println("0836登录包发送完成")
+
 	if !self.Decode_0836(data){
 		fmt.Println("0836包解析失败")
 		return
 	}else {
-		data = self.touch_Send(self.Encode_0828())
+		data = self.Touch_Send(self.Encode_0828())
 		self.Decode_0828(data)
 
-		data = self.touch_Send(self.Encode_00EC(1))
+		data = self.Touch_Send(self.Encode_00EC(1))
 		if len(data) == 0{
 			fmt.Println("00EC包解析失败")
 			return
 		}else {
-			data = self.touch_Send(self.Encode_001D())
+			data = self.Touch_Send(self.Encode_001D())
 			self.Decode_001D(data)
+			self.qq.utf8QQ = []byte(fmt.Sprintf("%d",self.qq.longQQ))
 		}
+
+		fmt.Println("NickName:",self.qq.nickName)
+		fmt.Println("UserQQ:",self.qq.longQQ)
+		fmt.Println("************欢迎登录************")
+
 	}
-	fmt.Println("NickName:",self.qq.nickName)
-	fmt.Println("UserQQ:",self.qq.longQQ)
-	fmt.Println("恭喜您登录成功，其它功能待完善")
+
 }
 
 // 通讯_发包
-func (self *PCQQ) touch_Send (sendData []byte) []byte {
+func (self *PCQQ) Touch_Send (sendData []byte) []byte {
 	length := int16(len(sendData) + 2)
 	sendData = utils.BytesMerge(utils.Int16ToBytes(length),sendData)
 	self.client.Send(sendData)
 	return self.client.Receive()
 }
+
+// 发送群消息
+func (self *PCQQ) SendGroupMsg(groupId int64, content string) {
+	data := self.Touch_Send(self.Encode_0002_SendGroupText(groupId,content))
+	if len(data) == 0{
+		fmt.Println("<发送失败>")
+	}else {
+		fmt.Println(content)
+	}
+}
+
+
+

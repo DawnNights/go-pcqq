@@ -75,6 +75,16 @@ func Flip(buf []byte) []byte {
 	return buf
 }
 
+//取出中间文本
+func StrMidGet(pre string,suf string,str string) string {
+	n := strings.Index(str, pre)
+	if n == -1 {n = 0} else {n = n + len(pre)}
+	str = string([]byte(str)[n:])
+	m := strings.Index(str, suf)
+	if m == -1 {m = len(str)}
+	return string([]byte(str)[:m])
+}
+
 //写入文件数据
 func FileWrite(path string,content []byte) int {
 	ioutil.WriteFile(path,content,0644)

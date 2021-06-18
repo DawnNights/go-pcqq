@@ -61,7 +61,7 @@ func (pack *PackEncrypt) SetShort(num int16) {
 }
 // 置长整数
 func (pack *PackEncrypt) SetLong(num int64) {
-	pack.src = BytesMerge(pack.src,Int64ToBytes(num))
+	pack.src = BytesMerge(pack.src,Int64ToBytes(num)[4:])
 }
 // 置字符串
 func (pack *PackEncrypt) SetStr(str string) {

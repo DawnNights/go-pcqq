@@ -89,6 +89,7 @@ func (self *PCQQ) Decode_0825(src []byte) bool {
 	if Type == 254{	//需要重定向服务器
 		pack.GetBin(18)
 		self.qq.connectSeverIp = pack.GetBin(4)
+		fmt.Println(fmt.Sprintf("重定向地址: %d.%d.%d.%d\n",self.qq.connectSeverIp[0],self.qq.connectSeverIp[1],self.qq.connectSeverIp[2],self.qq.connectSeverIp[3]))
 		return true
 	}else {
 		pack.GetBin(6)
@@ -171,6 +172,27 @@ func (self *PCQQ) Decode_0836(src []byte) bool {
 	}
 }
 
+// 解包_包0017
+func (self *PCQQ) Decode_0017(src []byte) {
+	pack := utils.PackDecrypt{}
+	tea,_ := qqtea.NewCipher(self.qq.sessionKey)
+
+	pack.SetData(src)
+	pack.GetBin(16)
+	dst := pack.GetAll()
+	dst = dst[0:len(dst)-1]
+	dst = tea.Decrypt(dst)
+
+	pack.SetData(dst)
+	pack.GetLong()
+
+	pack.GetBin(21)
+	length := int(pack.GetByte())
+	message := string(pack.GetBin(length))
+
+	fmt.Println(message)
+}
+
 // 解包_包001D: 解析Clientkey
 func (self *PCQQ) Decode_001D(src []byte){
 	pack := utils.PackDecrypt{}
@@ -178,18 +200,26 @@ func (self *PCQQ) Decode_001D(src []byte){
 
 	pack.SetData(src)
 	pack.GetBin(9)
+
 	pack.GetLong()  // QQ账号
 	pack.GetBin(3)  // 00 00 00
+
+
 	data := pack.GetAll()
 	data = data[0:len(data)-1]
-	data = tea.Encrypt(data)
+	data = tea.Decrypt(data)
 
 	pack.SetData(data)
 	pack.GetBin(2)
+
+
 	self.qq.clientKey = pack.GetAll()
 
-	fmt.Println("Sessionkey:",utils.Bin2HexTo(self.qq.sessionKey))
-	// fmt.Println("QQSkey",self.qq.sKey)
-	fmt.Println("Clientkey:",utils.Bin2HexTo(self.qq.clientKey))
-}
+	if len(self.qq.clientKey) != 32{
+		self.qq.clientKey = []byte{}
+		return
+	}
 
+	fmt.Println("Sessionkey",utils.Bin2HexTo(self.qq.sessionKey))
+	fmt.Println("Clientkey",utils.Bin2HexTo(self.qq.clientKey))
+}
