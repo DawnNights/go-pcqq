@@ -9,4 +9,4 @@ Go语言版PCQQ协议简单实现
 # 特别感谢
 - [qqtea](https://github.com/sun8911879/qqtea)
 - [miraiGo](https://github.com/Mrs4s/miraiGo)
-- [PCQQ-Agreement](https://github.com/HimmaTong/PCQQ-Agreement)
+- [PCQQ-Protocol--New](https://github.com/LenLiin/PCQQ-Protocol--New)
