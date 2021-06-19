@@ -6,9 +6,12 @@ import (
 	"encoding/hex"
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
+	"unsafe"
 )
 
 //取指定长度的随机字节集
@@ -89,4 +92,25 @@ func StrMidGet(pre string,suf string,str string) string {
 func FileWrite(path string,content []byte) int {
 	ioutil.WriteFile(path,content,0644)
 	return len(content)
+}
+
+//读取文件数据
+func FileRead(path string) []byte {
+	res,_ := os.Open(path)
+	defer res.Close()
+	data,_ := ioutil.ReadAll(res)
+	return data
+}
+
+//int64转int
+func Int64ToInt(num int64) int {
+	intPtr := (*int)(unsafe.Pointer(&num))
+	v := *intPtr
+	return v
+}
+
+// string转int
+func StrToInt(s string) int {
+	n, _ := strconv.Atoi(s)
+	return n
 }
