@@ -1,143 +1,83 @@
 package core
 
 import (
-	"encoding/json"
 	"fmt"
-	"mod"
 	"pcqq/utils"
 	"time"
 )
 
-const pcName = "DawnNights"
 type PCQQ struct {
-	client NetClient
-	qq     QQ_Struct
+	QQ     utils.QQ_Struct
+	Client NetClient
 }
 
-// 初始化
+// 初始化参数，连接服务器
 func (self *PCQQ) Init() {
-	self.qq.PublicKey = []byte{ 3, 148, 61, 203, 233, 18, 56, 97, 236, 247, 173, 189, 227, 54, 145, 145, 7, 1, 80, 190, 80, 57, 28, 211, 50 }
-	self.qq.ShareKey = []byte{ 253, 11, 121, 120, 49, 230, 136, 84, 252, 250, 234, 132, 82, 156, 125, 11 }
-	self.qq.RandHead16 = []byte{ 255, 117, 107, 118, 18, 133, 105, 165, 63, 198, 146, 171, 232, 58, 175, 103 }
-	self.qq.Time = utils.Int64ToBytes(time.Now().Unix())[4:]
-
-	self.client.Connect("123.151.77.237",443)
+	self.QQ.PublicKey = utils.Hex2Bin("03 94 3D CB E9 12 38 61 EC F7 AD BD E3 36 91 91 07 01 50 BE 50 39 1C D3 32")
+	self.QQ.ShareKey = utils.Hex2Bin("FD 0B 79 78 31 E6 88 54 FC FA EA 84 52 9C 7D 0B")
+	self.QQ.RandHead16 = utils.GetRandomBin(16)
+	self.Client.Connect("123.151.77.237",443)
 }
 
-// 获取二维码
+// 获取登录二维码
 func (self *PCQQ) GetQrCode() {
-	data := self.touch_Send(self.encode_0825(false))
-	self.decode_0825(data)
+	self.Client.Send(self.pack_0825(1))
+	self.unpack_0825(self.Client.Receive())
 
-	data = self.touch_Send(self.encode_0818())
-	self.checkQrCode(data)
+	var stateId int
+	var codeId string
+	var codeImg []byte
+
+	self.Client.Send(self.pack_0818())
+	self.unpack_0818(self.Client.Receive(),&codeId,&codeImg)	// 解析二维码
+	utils.FileWrite("QrCode.jpg",codeImg)
+	fmt.Println("ID:",codeId,"的二维码已保存至本地\n")
+
+
+	for i := 0; i < 60; i++ {	// 监听扫码状态
+		self.Client.Send(self.pack_0819(codeId,false))
+		self.unpack_0819(self.Client.Receive(),&stateId)
+		if stateId == 0 {
+			self.Client.Send(self.pack_0825(1))
+			self.unpack_0825(self.Client.Receive())
+
+			self.Client.Send(self.pack_0836())
+			self.unpack_0836(self.Client.Receive())
+
+			self.Client.Send(self.pack_0828())
+			self.unpack_0828(self.Client.Receive())
+
+			self.Client.Send(self.pack_00EC(1))	// 置登录状态为上线
+
+			self.Client.Send(self.pack_001D())
+			self.unpack_001D(self.Client.Receive())
+
+			fmt.Println("NickName:",self.QQ.NickName)
+			fmt.Println("UserQQ:",self.QQ.LongQQ)
+			fmt.Println("************欢迎登录************")
+			return
+		}
+		time.Sleep(time.Second)
+	}
 }
 
-// 加载本地登录信息
-func (self *PCQQ)  LoadConfig() {
-	config := utils.FileRead("config.json")
-	json.Unmarshal(config,&self.qq)
-}
 
-// 保存当前登录信息
-func (self *PCQQ) SaveConfig() {
-	config,_ := json.Marshal(self.qq)
-	utils.FileWrite("config.json",config)
-}
-
-// 监听QQ消息
-func (self *PCQQ) ListenMessage() {
+// 监听消息
+func (self *PCQQ) ListenMsg() {
 	for {
-		var data []byte
-		// table := map[string]bool{}
-
-		data = self.client.Receive()
-		// fmt.Println(utils.Bin2HexTo(data))
+		var data []byte = self.Client.Receive()
 		if data[5] == 0 && data[6] == 23{
-			// if _,ok := table[utils.Bin2HexTo(data)];ok {continue}else {table[utils.Bin2HexTo(data)]=true}
-			self.touch_Send(self.encode_0017(self.decode_0017(data),data[7:9]))
-
+			self.Client.Send(self.pack_0017(self.unpack_0017(data),data[7:9]))
 		}
 	}
 }
 
 // 发送群消息
 func (self *PCQQ) SendGroupMsg(groupId int64, content string) {
-	data := self.touch_Send(self.encode_0002_SendGroupText(groupId,content))
-	if len(data) == 0{
-		fmt.Println("<发送失败>")
+	self.Client.Send(self.pack_0002(groupId,content))
+	if len(self.Client.Receive()) == 0{
+		fmt.Println("Warn:","群消息发送失败")
 	}else {
-		fmt.Println(content)
+		fmt.Println(self.QQ.NickName+":",content)
 	}
 }
-
-// 检查二维码状态
-func (self *PCQQ) checkQrCode(src []byte) {
-	var stateId int
-	var codeId string
-	var codeImg []byte
-
-	self.decode_0818(src,&codeId,&codeImg)
-	mod.FileWrite("QrCode.jpg",codeImg)
-	fmt.Println("ID:",codeId,"的二维码已保存至本地\n")
-
-
-	for i := 0; i < 60; i++ {
-		src = self.touch_Send(self.encode_0819(codeId,false))
-		self.decode_0819(src,&stateId)
-		if stateId == 0{
-			self.startLogin()
-			return
-		}
-		time.Sleep(time.Second)
-	}
-	fmt.Println("您已超时，请重新执行程序")
-}
-
-// 开始登录
-func (self *PCQQ) startLogin() {
-	data := self.touch_Send(self.encode_0825(true))
-	// fmt.Println("0825登录包发送完成")
-	self.decode_0825(data)
-	// fmt.Println("0825登录包解析完成")
-
-
-	data = self.touch_Send(self.encode_0836())
-	// fmt.Println("0836登录包发送完成")
-
-	if !self.decode_0836(data){
-		fmt.Println("0836包解析失败")
-		return
-	}else {
-		data = self.touch_Send(self.encode_0828())
-		self.decode_0828(data)
-
-		data = self.touch_Send(self.encode_00EC(1))
-		if len(data) == 0{
-			fmt.Println("00EC包解析失败")
-			return
-		}else {
-			data = self.touch_Send(self.encode_001D())
-			self.decode_001D(data)
-			self.qq.StrQQ = fmt.Sprintf("%d",self.qq.LongQQ)
-			self.qq.Utf8QQ = []byte(self.qq.StrQQ)
-
-		}
-
-		fmt.Println("NickName:",self.qq.NickName)
-		fmt.Println("UserQQ:",self.qq.LongQQ)
-		fmt.Println("************欢迎登录************")
-		self.SaveConfig()
-	}
-
-}
-
-// 通讯_发包
-func (self *PCQQ) touch_Send (sendData []byte) []byte {
-	length := int16(len(sendData) + 2)
-	sendData = utils.BytesMerge(utils.Int16ToBytes(length),sendData)
-	self.client.Send(sendData)
-	return self.client.Receive()
-}
-
-

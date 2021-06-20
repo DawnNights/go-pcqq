@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"net"
+	"pcqq/utils"
 )
 
 type NetClient struct {
@@ -10,23 +11,23 @@ type NetClient struct {
 }
 
 // 连接
-func (udp *NetClient) Connect(ip string,port int16) bool {
+func (self *NetClient) Connect(ip string,port int16) bool {
 	var err error
-	udp.conn, err = net.Dial("tcp",fmt.Sprintf("%s:%d",ip,port))
-
+	self.conn, err = net.Dial("tcp",fmt.Sprintf("%s:%d",ip,port))
 	if err != nil {
         fmt.Println("Connect error:", err)
         return false
     }
     fmt.Println(fmt.Sprintf("%s:%d",ip,port),"连接成功")
-
-    // defer udp.conn.Close()
     return true
 }
 
 // 发送
-func (udp *NetClient) Send(sendData []byte) bool {
-	 _, err := udp.conn.Write(sendData)
+func (self *NetClient) Send(sendData []byte) bool {
+	length := int16(len(sendData) + 2)
+	sendData = utils.BytesMerge(utils.Int16ToBytes(length),sendData)
+
+	 _, err := self.conn.Write(sendData)
 	 if err != nil {
         fmt.Println("Send error:", err)
         return false
@@ -36,10 +37,10 @@ func (udp *NetClient) Send(sendData []byte) bool {
 }
 
 // 接收
-func (udp *NetClient) Receive() []byte {
+func (self *NetClient) Receive() []byte {
 	result := make([]byte, 20480)
 
-	size,err := udp.conn.Read(result)
+	size,err := self.conn.Read(result)
 	if err != nil {
         fmt.Println("Receive error:", err)
         return []byte{}

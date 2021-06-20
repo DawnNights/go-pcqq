@@ -1,10 +1,8 @@
-package core
+package utils
 
 type QQ_Struct struct {
-    StrQQ string
     BinQQ []byte
     LongQQ int64
-    Utf8QQ []byte
 
     Time []byte
     NickName string
@@ -12,11 +10,8 @@ type QQ_Struct struct {
     RandHead16 []byte
     SessionKey []byte
     ClientKey []byte
-    TgtKey []byte
     ShareKey []byte
     PublicKey []byte
-    // privateKey []byte
-    // sKey string
 
     PcKeyFor0819 []byte
     PcKeyTgt []byte
@@ -30,5 +25,4 @@ type QQ_Struct struct {
 
     LocalPcIp []byte
     ConnectSeverIp []byte
-    // mRequstID int
 }

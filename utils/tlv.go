@@ -1,7 +1,5 @@
 package utils
 
-import "github.com/sun8911879/qqtea"
-
 type Tlv [4]uint32
 
 func(t *Tlv) TlvPack(TlvCmd string,TlvBin []byte) []byte {
@@ -61,7 +59,7 @@ func(t *Tlv) Tlv015() []byte{
 
 func(t *Tlv) Tlv01A(Tgtkey []byte) []byte{
 	var pack PackEncrypt
-	tea,_ := qqtea.NewCipher(Tgtkey)
+	tea,_ := NewCipher(Tgtkey)
 	pack.Empty()
 	pack.SetHex("00 01 01 74 83 F2 C3 00 10 14 FE 77 FC 00 00 00 00 00 00 00 00 00 00 00 00 02 17 65 6E 9D 00 10 78 8A 33 DD 00 76 A1 78 EB 8E 5B BB FF 17 D0 10")
 	return t.TlvPack("00 1A",tea.Encrypt(pack.GetAll()))
