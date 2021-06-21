@@ -3,6 +3,7 @@ package core
 
 import (
 	"fmt"
+	"pcqq/core/message"
 	"pcqq/utils"
 	"strings"
 	"time"
@@ -209,8 +210,8 @@ func (self *PCQQ) unpack_001D(src []byte){
 	fmt.Println("Sessionkey",utils.Bin2HexTo(self.QQ.SessionKey))
 }
 
-// 解析消息包
-func (self *PCQQ) unpack_0017(src []byte) []byte {
+// 解析群消息包
+func (self *PCQQ) unpack_0017(src []byte,key *[]byte) {
 	unpack := utils.PackDecrypt{}
 	tea,_ := utils.NewCipher(self.QQ.SessionKey)
 	unpack.SetData(src)
@@ -219,9 +220,9 @@ func (self *PCQQ) unpack_0017(src []byte) []byte {
 	dst = dst[0:len(dst)-1]
 	dst = tea.Decrypt(dst)
 	if len(dst) == 0{
-		return []byte{}
+		return
 	}
-
+	*key = dst[0:16]
 	unpack.SetData(dst)
 
 	fromGroup := unpack.GetLong()	//接收群号
@@ -233,13 +234,13 @@ func (self *PCQQ) unpack_0017(src []byte) []byte {
 	unpack.GetBin(length)
 
 	if len(unpack.GetAll()) < 5{
-		return []byte{}
+		return
 	}
 
 	unpack.GetLong()
 	flag := unpack.GetByte()
 
-	if typeOf == 82 && flag == 1{
+	if typeOf == 82 && flag == 1{	// 群消息
 		fromQQ := unpack.GetLong()	//接收QQ
 		unpack.GetLong()	//消息索引
 		receiveTime := unpack.GetLong()	//接收时间
@@ -252,32 +253,91 @@ func (self *PCQQ) unpack_0017(src []byte) []byte {
 		unpack.GetBin(length)	//字体
 		unpack.GetBin(2)
 
-		msgType := unpack.GetByte()
-		unpack.GetShort()	//数据长度
-		unpack.GetByte()
+		defer func() {
+			err := recover()
+			if err != nil {
+				warn := fmt.Sprintf(
+					"<%s> Warn: 群聊(%d)消息解析失败",
+					time.Unix(receiveTime,0).Format("2006-01-02 03:04:05"),
+					fromGroup,
+					)
+				fmt.Println(warn)
+			}}()
 
-		if msgType != 1 {
-			return []byte{}
-		}
-
-		length := int(unpack.GetShort())
-		msgStr := string(unpack.GetBin(length))
-		unpack.GetBin(2)
-
-
+		// 以下是消息正文
 		str := utils.Bin2HexTo(unpack.GetAll())
-		str = str[strings.Index(str,"04 00 C0 04 00 CA 04 00 F8 04 00")+105:]
-		unpack.SetData(utils.Hex2Bin(str))
+		pos := strings.Index(str,"04 00 C0 04 00 CA 04 00 F8 04 00")
 
+		unpack.SetData(utils.Hex2Bin(str[pos+105:]))
 		length = int(unpack.GetShort())
-		fromUserName := string(unpack.GetBin(length))
+		fromUserName := string(unpack.GetBin(length))	// 发消息者昵称
 
-		fmt.Println(fmt.Sprintf(
-			"<%s>收到(%d)消息 %s[%d]: %s",
+		var msg string = fmt.Sprintf(
+			"<%s>收到群聊(%d)消息 %s[%d]: ",
 			time.Unix(receiveTime,0).Format("2006-01-02 03:04:05"),
-			fromGroup,fromUserName,fromQQ,msgStr,
-			))
+			fromGroup,fromUserName,fromQQ,
+			)
+
+		message.MessageParse(utils.Hex2Bin(str[0:pos]),&msg)
+
+		fmt.Println(msg)
 
 	}
-	return dst[0:16]
+}
+
+// 解析好友消息包
+func (self *PCQQ) unpack_00CE(src []byte,key *[]byte) {
+	unpack := utils.PackDecrypt{}
+	tea,_ := utils.NewCipher(self.QQ.SessionKey)
+	unpack.SetData(src)
+	unpack.GetBin(16)
+	dst := unpack.GetAll()
+	dst = dst[0:len(dst)-1]
+	dst = tea.Decrypt(dst)
+	if len(dst) == 0{
+		fmt.Println("00CE解包失败")
+		return
+	}
+	*key = dst[0:16]
+	unpack.SetData(dst)
+
+	fromQQ := unpack.GetLong()	// 来源QQ
+	unpack.GetLong()	// 自身QQ
+	unpack.GetBin(14)
+
+	length := int(unpack.GetShort())
+	unpack.GetBin(length)
+
+	unpack.GetBin(2)	// QQ版本
+	unpack.GetLong()	// 来源QQ
+	unpack.GetLong()	// 自身QQ
+
+	unpack.GetBin(16)	// 会话令牌
+	unpack.GetBin(4)
+
+	receiveTime := unpack.GetLong()	//接收时间
+
+	defer func() {
+		err := recover()
+		if err != nil {
+			warn := fmt.Sprintf(
+				"<%s> Warn: 好友(%d)消息解析失败",
+				time.Unix(receiveTime,0).Format("2006-01-02 03:04:05"), fromQQ)
+			fmt.Println(warn)}}()
+
+	unpack.GetBin(6)	//头像、字体属性
+	unpack.GetBin(5)	//消息相关信息
+
+	unpack.GetBin(24)
+	length = int(unpack.GetShort())
+	unpack.GetBin(length)	// 字体名称
+	unpack.GetBin(2)
+
+	var msg string = fmt.Sprintf(
+		"<%s>收到好友(%d)消息: ",
+		time.Unix(receiveTime,0).Format("2006-01-02 03:04:05"), fromQQ)
+
+	message.MessageParse(unpack.GetAll(),&msg)
+	fmt.Println(msg)
+
 }

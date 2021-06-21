@@ -237,7 +237,7 @@ func (self *PCQQ) pack_00EC(state int) []byte{
 	return data
 }
 
-// 确认消息已读
+// 确认群消息已读
 // sendData=消息包解密前16位
 // sequence=消息包序列
 func (self *PCQQ) pack_0017(sendData []byte, sequence []byte) []byte{
@@ -251,6 +251,30 @@ func (self *PCQQ) pack_0017(sendData []byte, sequence []byte) []byte{
 	pack.Empty()
 	pack.SetHex("02 36 39")
 	pack.SetHex("00 17")
+	pack.SetBin(sequence)
+	pack.SetBin(self.QQ.BinQQ)
+	pack.SetHex("02 00 00 00 01 01 01 00 00 67 B7")
+	pack.SetBin(data)
+
+	pack.SetHex("03")
+	data = pack.GetAll()
+	return data
+}
+
+// 确认好友消息已读
+// sendData=消息包解密前16位
+// sequence=消息包序列
+func (self *PCQQ) pack_00CE(sendData []byte, sequence []byte) []byte {
+	pack := utils.PackEncrypt{}
+	tea,_ := utils.NewCipher(self.QQ.SessionKey)
+
+	pack.Empty()
+	pack.SetBin(sendData)
+	data := tea.Encrypt(pack.GetAll())
+
+	pack.Empty()
+	pack.SetHex("02 36 39")
+	pack.SetHex("00 CE")
 	pack.SetBin(sequence)
 	pack.SetBin(self.QQ.BinQQ)
 	pack.SetHex("02 00 00 00 01 01 01 00 00 67 B7")
@@ -293,6 +317,48 @@ func (self *PCQQ) pack_0002(groupId int64, content string) []byte {
 	pack.Empty()
 	pack.SetHex("02 36 39")
 	pack.SetHex("00 02")
+	pack.SetBin(utils.GetRandomBin(2))
+	pack.SetBin(self.QQ.BinQQ)
+	pack.SetHex("02 00 00 00 01 01 01 00 00 67 B7")
+	pack.SetBin(data)
+	pack.SetHex("03")
+	data = pack.GetAll()
+	return data
+}
+
+// 发送好友文本消息包
+// userId=发送群号
+// content=消息内容
+func (self *PCQQ) pack_00CD(userId int64, content string) []byte {
+	tea,_ := utils.NewCipher(self.QQ.SessionKey)
+	pack := utils.PackEncrypt{}
+
+	self.QQ.Time = utils.Int64ToBytes(time.Now().Unix())[4:]
+	Msg := []byte(content)
+
+	pack.Empty()
+	pack.SetBin(self.QQ.BinQQ)
+	pack.SetLong(userId)
+	pack.SetHex("00 00 00 08 00 01 00 04 00 00 00 00 36 39")
+	pack.SetBin(self.QQ.BinQQ)
+	pack.SetLong(userId)
+
+	pack.SetBin(utils.HashMD5(self.QQ.Time))
+	pack.SetHex("00 0B 4A B6")
+	pack.SetBin(self.QQ.Time)
+	pack.SetHex("02 55 00 00 00 00 01 00 00 00 01 4D 53 47 00 00 00 00 00")
+	pack.SetBin(self.QQ.Time)
+	pack.SetBin(utils.Flip(self.QQ.Time))
+	pack.SetHex("00 00 00 00 09 00 86 00 00 06 E5 AE 8B E4 BD 93 00 00 01")
+	pack.SetShort(int16(len(Msg) + 3))
+	pack.SetHex("01")
+	pack.SetShort(int16(len(Msg)))
+	pack.SetBin(Msg)
+	data := tea.Encrypt(pack.GetAll())
+
+	pack.Empty()
+	pack.SetHex("02 36 39")
+	pack.SetHex("00 CD")
 	pack.SetBin(utils.GetRandomBin(2))
 	pack.SetBin(self.QQ.BinQQ)
 	pack.SetHex("02 00 00 00 01 01 01 00 00 67 B7")

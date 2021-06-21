@@ -65,10 +65,31 @@ func (self *PCQQ) GetQrCode() {
 // 监听消息
 func (self *PCQQ) ListenMsg() {
 	for {
+		var key []byte
 		var data []byte = self.Client.Receive()
-		if data[5] == 0 && data[6] == 23{
-			self.Client.Send(self.pack_0017(self.unpack_0017(data),data[7:9]))
+
+		if data[5] == 0{
+			switch data[6] {
+			case 23:
+
+				self.unpack_0017(data,&key)
+				self.Client.Send(self.pack_0017(key,data[7:9]))
+			case 206:
+				self.unpack_00CE(data,&key)
+				self.Client.Send(self.pack_00CE(key,data[7:9]))
+			}
+
 		}
+	}
+}
+
+// 发送好友消息
+func (self *PCQQ) SendUserMsg(userId int64, content string) {
+	self.Client.Send(self.pack_00CD(userId,content))
+	if len(self.Client.Receive()) == 0{
+		fmt.Println("Warn:","好友消息发送失败")
+	}else {
+		fmt.Println(self.QQ.NickName+":",content,"=> User:",userId)
 	}
 }
 
@@ -78,6 +99,6 @@ func (self *PCQQ) SendGroupMsg(groupId int64, content string) {
 	if len(self.Client.Receive()) == 0{
 		fmt.Println("Warn:","群消息发送失败")
 	}else {
-		fmt.Println(self.QQ.NickName+":",content)
+		fmt.Println(self.QQ.NickName+":",content,"=> Group:",groupId)
 	}
 }

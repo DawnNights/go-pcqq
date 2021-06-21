@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/binary"
 	"encoding/hex"
 	"io/ioutil"
@@ -113,4 +114,10 @@ func Int64ToInt(num int64) int {
 func StrToInt(s string) int {
 	n, _ := strconv.Atoi(s)
 	return n
+}
+
+//MD5加密
+func HashMD5(src []byte) []byte {
+    has := md5.Sum(src)
+    return has[:]
 }
